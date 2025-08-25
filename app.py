@@ -2535,7 +2535,9 @@ if __name__ == "__main__":
     print("="*60)
     print("Multi-tab dashboard with comprehensive filters")
     print("Accurate data from 23,575 import records (includes Jordan, Oman, Bahrain)")
-    print("\n📊 Access at: http://localhost:8011")
+    print("\n📊 Access at: http://localhost:8000")
     print("="*60 + "\n")
     
-    uvicorn.run(app, host="0.0.0.0", port=8011)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
