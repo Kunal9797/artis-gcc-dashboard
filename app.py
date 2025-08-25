@@ -1845,7 +1845,7 @@ async def get_overview(
         params.extend(countries)
     
     if product_type and product_type != 'all':
-        where_conditions.append("PRODUCT_TYPE = ?")
+        where_conditions.append("PRODUCT_DESC = ?")
         params.append(product_type)
     
     if size and size != 'all':
@@ -1865,7 +1865,7 @@ async def get_overview(
             params.append(float(thickness))
     
     if min_value:
-        where_conditions.append("TOTAL_VALUE_USD >= ?")
+        where_conditions.append("VALUE_USD >= ?")
         params.append(min_value)
     
     if date_range and date_range != 'all':
@@ -1886,11 +1886,11 @@ async def get_overview(
     query = f"""
         SELECT 
             COUNT(*) as total_shipments,
-            SUM(TOTAL_VALUE_USD) as total_value,
-            COUNT(DISTINCT CONSIGNEE_NAME) as unique_buyers,
-            AVG(TOTAL_VALUE_USD) as avg_order_value,
-            SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) as single_side_count,
-            ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct
+            SUM(VALUE_USD) as total_value,
+            COUNT(DISTINCT FOREIGN_BUYER) as unique_buyers,
+            AVG(VALUE_USD) as avg_order_value,
+            SUM(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 ELSE 0 END) as single_side_count,
+            ROUND(SUM(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct
         FROM indian_export_shipments
         WHERE {where_clause}
     """
@@ -1904,8 +1904,8 @@ async def get_overview(
             DESTINATION_COUNTRY,
             SUM(QUANTITY) as total_sheets,
             ROUND(SUM(QUANTITY) * 100.0 / (SELECT SUM(QUANTITY) FROM indian_export_shipments WHERE {where_clause}), 1) as volume_pct,
-            SUM(TOTAL_VALUE_USD) as total_value,
-            ROUND(SUM(TOTAL_VALUE_USD) * 100.0 / (SELECT SUM(TOTAL_VALUE_USD) FROM indian_export_shipments WHERE {where_clause}), 1) as value_pct
+            SUM(VALUE_USD) as total_value,
+            ROUND(SUM(VALUE_USD) * 100.0 / (SELECT SUM(VALUE_USD) FROM indian_export_shipments WHERE {where_clause}), 1) as value_pct
         FROM indian_export_shipments
         WHERE {where_clause}
         GROUP BY DESTINATION_COUNTRY
@@ -1949,7 +1949,7 @@ async def get_buyers(
     conn = get_db_connection()
     
     # Build WHERE clause
-    where_conditions = ["CONSIGNEE_NAME NOT LIKE '%ORDER%'"]
+    where_conditions = ["FOREIGN_BUYER NOT LIKE '%ORDER%'"]
     params = []
     
     if countries:
@@ -1958,7 +1958,7 @@ async def get_buyers(
         params.extend(countries)
     
     if product_type and product_type != 'all':
-        where_conditions.append("PRODUCT_TYPE = ?")
+        where_conditions.append("PRODUCT_DESC = ?")
         params.append(product_type)
     
     if size and size != 'all':
@@ -1973,7 +1973,7 @@ async def get_buyers(
             params.append(float(thickness))
     
     if min_value:
-        where_conditions.append("TOTAL_VALUE_USD >= ?")
+        where_conditions.append("VALUE_USD >= ?")
         params.append(min_value)
     
     # Add date range filter
@@ -1998,12 +1998,12 @@ async def get_buyers(
     # Get top buyers
     query = f"""
         SELECT 
-            CONSIGNEE_NAME,
+            FOREIGN_BUYER,
             GROUP_CONCAT(DISTINCT DESTINATION_COUNTRY) as countries,
             COUNT(*) as total_orders,
-            SUM(TOTAL_VALUE_USD) as total_value,
-            SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) as single_side,
-            ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
+            SUM(VALUE_USD) as total_value,
+            SUM(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 ELSE 0 END) as single_side,
+            ROUND(SUM(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
             AVG(UNIT_PRICE_USD) as avg_price,
             GROUP_CONCAT(DISTINCT SHIPPER_NAME) as suppliers,
             GROUP_CONCAT(DISTINCT SIZE) as sizes,
@@ -2011,7 +2011,7 @@ async def get_buyers(
             SUM(CASE WHEN SIZE IN ('1220x2440', '2440x1220') THEN 1 ELSE 0 END) as buys_1220x2440
         FROM indian_export_shipments
         WHERE {where_clause}
-        GROUP BY CONSIGNEE_NAME
+        GROUP BY FOREIGN_BUYER
         ORDER BY total_value DESC
         LIMIT 50
     """
@@ -2023,8 +2023,8 @@ async def get_buyers(
     # Get total counts
     count_query = f"""
         SELECT 
-            COUNT(DISTINCT CONSIGNEE_NAME) as total_buyers,
-            COUNT(DISTINCT CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN CONSIGNEE_NAME END) as single_side_buyers
+            COUNT(DISTINCT FOREIGN_BUYER) as total_buyers,
+            COUNT(DISTINCT CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN FOREIGN_BUYER END) as single_side_buyers
         FROM indian_export_shipments
         WHERE {where_clause}
     """
@@ -2092,7 +2092,7 @@ async def get_products(
         params.extend(countries)
     
     if product_type and product_type != 'all':
-        where_conditions.append("PRODUCT_TYPE = ?")
+        where_conditions.append("PRODUCT_DESC = ?")
         params.append(product_type)
     
     if size and size != 'all':
@@ -2107,7 +2107,7 @@ async def get_products(
             params.append(float(thickness))
     
     if min_value:
-        where_conditions.append("TOTAL_VALUE_USD >= ?")
+        where_conditions.append("VALUE_USD >= ?")
         params.append(min_value)
     
     # Add date range filter
@@ -2135,9 +2135,9 @@ async def get_products(
             COALESCE(SIZE, 'Unspecified') as size,
             COUNT(*) as count,
             ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM indian_export_shipments WHERE {where_clause}), 1) as pct,
-            ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
+            ROUND(SUM(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
             ROUND(AVG(UNIT_PRICE_USD), 2) as avg_price,
-            GROUP_CONCAT(DISTINCT CONSIGNEE_NAME) as top_buyers
+            GROUP_CONCAT(DISTINCT FOREIGN_BUYER) as top_buyers
         FROM indian_export_shipments
         WHERE {where_clause}
         GROUP BY SIZE
@@ -2154,7 +2154,7 @@ async def get_products(
             COALESCE(CAST(THICKNESS as TEXT), 'Unspecified') as thickness,
             COUNT(*) as count,
             ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM indian_export_shipments WHERE {where_clause}), 1) as pct,
-            ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
+            ROUND(SUM(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
             ROUND(AVG(UNIT_PRICE_USD), 2) as avg_price
         FROM indian_export_shipments
         WHERE {where_clause}
@@ -2233,7 +2233,7 @@ async def get_competitors(
         params.extend(countries)
     
     if product_type and product_type != 'all':
-        where_conditions.append("PRODUCT_TYPE = ?")
+        where_conditions.append("PRODUCT_DESC = ?")
         params.append(product_type)
     
     if size and size != 'all':
@@ -2248,7 +2248,7 @@ async def get_competitors(
             params.append(float(thickness))
     
     if min_value:
-        where_conditions.append("TOTAL_VALUE_USD >= ?")
+        where_conditions.append("VALUE_USD >= ?")
         params.append(min_value)
     
     # Add date range filter
@@ -2276,13 +2276,13 @@ async def get_competitors(
             SHIPPER_NAME,
             ORIGIN_COUNTRY,
             COUNT(*) as orders,
-            SUM(TOTAL_VALUE_USD) as total_value,
-            ROUND(SUM(TOTAL_VALUE_USD) * 100.0 / (SELECT SUM(TOTAL_VALUE_USD) FROM indian_export_shipments WHERE {where_clause}), 1) as value_share,
+            SUM(VALUE_USD) as total_value,
+            ROUND(SUM(VALUE_USD) * 100.0 / (SELECT SUM(VALUE_USD) FROM indian_export_shipments WHERE {where_clause}), 1) as value_share,
             SUM(QUANTITY) as total_sheets,
             ROUND(SUM(QUANTITY) * 100.0 / (SELECT SUM(QUANTITY) FROM indian_export_shipments WHERE {where_clause}), 1) as volume_share,
-            ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
+            ROUND(SUM(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
             ROUND(AVG(UNIT_PRICE_USD), 2) as avg_price,
-            GROUP_CONCAT(DISTINCT CONSIGNEE_NAME) as key_buyers
+            GROUP_CONCAT(DISTINCT FOREIGN_BUYER) as key_buyers
         FROM indian_export_shipments
         WHERE {where_clause}
         GROUP BY SHIPPER_NAME
@@ -2302,7 +2302,7 @@ async def get_competitors(
         country_query = f"""
             SELECT 
                 DESTINATION_COUNTRY,
-                SUM(TOTAL_VALUE_USD) as country_value
+                SUM(VALUE_USD) as country_value
             FROM indian_export_shipments
             WHERE SHIPPER_NAME = ? AND ({where_clause})
             GROUP BY DESTINATION_COUNTRY
@@ -2364,7 +2364,7 @@ async def get_pricing(
         params.extend(countries)
     
     if product_type and product_type != 'all':
-        where_conditions.append("PRODUCT_TYPE = ?")
+        where_conditions.append("PRODUCT_DESC = ?")
         params.append(product_type)
     
     if size and size != 'all':
@@ -2379,7 +2379,7 @@ async def get_pricing(
             params.append(float(thickness))
     
     if min_value:
-        where_conditions.append("TOTAL_VALUE_USD >= ?")
+        where_conditions.append("VALUE_USD >= ?")
         params.append(min_value)
     
     # Add date range filter
@@ -2404,8 +2404,8 @@ async def get_pricing(
     # Get average prices
     query = f"""
         SELECT 
-            AVG(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN UNIT_PRICE_USD END) as single_avg,
-            AVG(CASE WHEN PRODUCT_TYPE = 'DOUBLE_SIDE' THEN UNIT_PRICE_USD END) as double_avg
+            AVG(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN UNIT_PRICE_USD END) as single_avg,
+            AVG(CASE WHEN PRODUCT_DESC = 'DOUBLE_SIDE' THEN UNIT_PRICE_USD END) as double_avg
         FROM indian_export_shipments
         WHERE {where_clause}
     """
@@ -2484,12 +2484,12 @@ async def get_insights(
     # Get market stats for insights
     query = f"""
         SELECT 
-            COUNT(CASE WHEN DESTINATION_COUNTRY = 'EGYPT' AND PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 END) as egypt_single,
-            COUNT(CASE WHEN DESTINATION_COUNTRY = 'ISRAEL' AND PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 END) as israel_single,
-            COUNT(CASE WHEN DESTINATION_COUNTRY = 'UNITED ARAB EMIRATES' AND PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 END) as uae_single,
-            COUNT(CASE WHEN DESTINATION_COUNTRY = 'SAUDI ARABIA' AND PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 END) as saudi_single,
+            COUNT(CASE WHEN DESTINATION_COUNTRY = 'EGYPT' AND PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 END) as egypt_single,
+            COUNT(CASE WHEN DESTINATION_COUNTRY = 'ISRAEL' AND PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 END) as israel_single,
+            COUNT(CASE WHEN DESTINATION_COUNTRY = 'UNITED ARAB EMIRATES' AND PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 END) as uae_single,
+            COUNT(CASE WHEN DESTINATION_COUNTRY = 'SAUDI ARABIA' AND PRODUCT_DESC = 'SINGLE_SIDE' THEN 1 END) as saudi_single,
             COUNT(CASE WHEN SIZE IN ('1220x2440', '2440x1220') THEN 1 END) as artis_size_orders,
-            AVG(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN UNIT_PRICE_USD END) as single_avg_price
+            AVG(CASE WHEN PRODUCT_DESC = 'SINGLE_SIDE' THEN UNIT_PRICE_USD END) as single_avg_price
         FROM indian_export_shipments
         WHERE {where_clause}
     """
