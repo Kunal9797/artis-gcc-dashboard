@@ -24,12 +24,7 @@ except:
 
 def get_db_connection():
     """Get database connection"""
-    import os
-    # Use local database file (in same directory for deployment)
-    if os.path.exists('gcc_mirror_intelligence.db'):
-        conn = sqlite3.connect('gcc_mirror_intelligence.db')
-    else:
-        conn = sqlite3.connect('../artis-intelligence/gcc_mirror_intelligence.db')
+    conn = sqlite3.connect('data/processed/gcc_mirror_intelligence.db')
     conn.row_factory = sqlite3.Row
     return conn
 
