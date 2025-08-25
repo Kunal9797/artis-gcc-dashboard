@@ -24,7 +24,21 @@ except:
 
 def get_db_connection():
     """Get database connection"""
-    conn = sqlite3.connect('data/processed/gcc_mirror_intelligence.db')
+    # Try multiple paths for flexibility
+    import os
+    db_paths = [
+        'gcc_mirror_intelligence.db',  # Root directory
+        'data/processed/gcc_mirror_intelligence.db',  # Original path
+    ]
+    
+    for path in db_paths:
+        if os.path.exists(path):
+            conn = sqlite3.connect(path)
+            conn.row_factory = sqlite3.Row
+            return conn
+    
+    # Fallback to root directory
+    conn = sqlite3.connect('gcc_mirror_intelligence.db')
     conn.row_factory = sqlite3.Row
     return conn
 
