@@ -1891,7 +1891,7 @@ async def get_overview(
             AVG(TOTAL_VALUE_USD) as avg_order_value,
             SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) as single_side_count,
             ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
     """
     
@@ -1903,10 +1903,10 @@ async def get_overview(
         SELECT 
             DESTINATION_COUNTRY,
             SUM(QUANTITY) as total_sheets,
-            ROUND(SUM(QUANTITY) * 100.0 / (SELECT SUM(QUANTITY) FROM mirror_shipments WHERE {where_clause}), 1) as volume_pct,
+            ROUND(SUM(QUANTITY) * 100.0 / (SELECT SUM(QUANTITY) FROM indian_export_shipments WHERE {where_clause}), 1) as volume_pct,
             SUM(TOTAL_VALUE_USD) as total_value,
-            ROUND(SUM(TOTAL_VALUE_USD) * 100.0 / (SELECT SUM(TOTAL_VALUE_USD) FROM mirror_shipments WHERE {where_clause}), 1) as value_pct
-        FROM mirror_shipments
+            ROUND(SUM(TOTAL_VALUE_USD) * 100.0 / (SELECT SUM(TOTAL_VALUE_USD) FROM indian_export_shipments WHERE {where_clause}), 1) as value_pct
+        FROM indian_export_shipments
         WHERE {where_clause}
         GROUP BY DESTINATION_COUNTRY
         ORDER BY total_value DESC
@@ -2009,7 +2009,7 @@ async def get_buyers(
             GROUP_CONCAT(DISTINCT SIZE) as sizes,
             MAX(DATE) as last_order,
             SUM(CASE WHEN SIZE IN ('1220x2440', '2440x1220') THEN 1 ELSE 0 END) as buys_1220x2440
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
         GROUP BY CONSIGNEE_NAME
         ORDER BY total_value DESC
@@ -2025,7 +2025,7 @@ async def get_buyers(
         SELECT 
             COUNT(DISTINCT CONSIGNEE_NAME) as total_buyers,
             COUNT(DISTINCT CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN CONSIGNEE_NAME END) as single_side_buyers
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
     """
     
@@ -2134,11 +2134,11 @@ async def get_products(
         SELECT 
             COALESCE(SIZE, 'Unspecified') as size,
             COUNT(*) as count,
-            ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM mirror_shipments WHERE {where_clause}), 1) as pct,
+            ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM indian_export_shipments WHERE {where_clause}), 1) as pct,
             ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
             ROUND(AVG(UNIT_PRICE_USD), 2) as avg_price,
             GROUP_CONCAT(DISTINCT CONSIGNEE_NAME) as top_buyers
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
         GROUP BY SIZE
         ORDER BY count DESC
@@ -2153,10 +2153,10 @@ async def get_products(
         SELECT 
             COALESCE(CAST(THICKNESS as TEXT), 'Unspecified') as thickness,
             COUNT(*) as count,
-            ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM mirror_shipments WHERE {where_clause}), 1) as pct,
+            ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM indian_export_shipments WHERE {where_clause}), 1) as pct,
             ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
             ROUND(AVG(UNIT_PRICE_USD), 2) as avg_price
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
         GROUP BY THICKNESS
         ORDER BY count DESC
@@ -2172,7 +2172,7 @@ async def get_products(
             COUNT(CASE WHEN SIZE IN ('1220x2440', '2440x1220') THEN 1 END) as artis_size_count,
             COUNT(*) as total,
             ROUND(COUNT(CASE WHEN SIZE IN ('1220x2440', '2440x1220') THEN 1 END) * 100.0 / COUNT(*), 1) as artis_pct
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
     """
     
@@ -2277,13 +2277,13 @@ async def get_competitors(
             ORIGIN_COUNTRY,
             COUNT(*) as orders,
             SUM(TOTAL_VALUE_USD) as total_value,
-            ROUND(SUM(TOTAL_VALUE_USD) * 100.0 / (SELECT SUM(TOTAL_VALUE_USD) FROM mirror_shipments WHERE {where_clause}), 1) as value_share,
+            ROUND(SUM(TOTAL_VALUE_USD) * 100.0 / (SELECT SUM(TOTAL_VALUE_USD) FROM indian_export_shipments WHERE {where_clause}), 1) as value_share,
             SUM(QUANTITY) as total_sheets,
-            ROUND(SUM(QUANTITY) * 100.0 / (SELECT SUM(QUANTITY) FROM mirror_shipments WHERE {where_clause}), 1) as volume_share,
+            ROUND(SUM(QUANTITY) * 100.0 / (SELECT SUM(QUANTITY) FROM indian_export_shipments WHERE {where_clause}), 1) as volume_share,
             ROUND(SUM(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as single_side_pct,
             ROUND(AVG(UNIT_PRICE_USD), 2) as avg_price,
             GROUP_CONCAT(DISTINCT CONSIGNEE_NAME) as key_buyers
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
         GROUP BY SHIPPER_NAME
         ORDER BY total_value DESC
@@ -2303,7 +2303,7 @@ async def get_competitors(
             SELECT 
                 DESTINATION_COUNTRY,
                 SUM(TOTAL_VALUE_USD) as country_value
-            FROM mirror_shipments
+            FROM indian_export_shipments
             WHERE SHIPPER_NAME = ? AND ({where_clause})
             GROUP BY DESTINATION_COUNTRY
             ORDER BY country_value DESC
@@ -2406,7 +2406,7 @@ async def get_pricing(
         SELECT 
             AVG(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN UNIT_PRICE_USD END) as single_avg,
             AVG(CASE WHEN PRODUCT_TYPE = 'DOUBLE_SIDE' THEN UNIT_PRICE_USD END) as double_avg
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
     """
     
@@ -2421,7 +2421,7 @@ async def get_pricing(
             AVG(UNIT_PRICE_USD) as avg_price,
             MAX(UNIT_PRICE_USD) as max_price,
             UNIT_PRICE_USD as mode_price
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause} AND SIZE IS NOT NULL
         GROUP BY SIZE, THICKNESS
         ORDER BY COUNT(*) DESC
@@ -2490,7 +2490,7 @@ async def get_insights(
             COUNT(CASE WHEN DESTINATION_COUNTRY = 'SAUDI ARABIA' AND PRODUCT_TYPE = 'SINGLE_SIDE' THEN 1 END) as saudi_single,
             COUNT(CASE WHEN SIZE IN ('1220x2440', '2440x1220') THEN 1 END) as artis_size_orders,
             AVG(CASE WHEN PRODUCT_TYPE = 'SINGLE_SIDE' THEN UNIT_PRICE_USD END) as single_avg_price
-        FROM mirror_shipments
+        FROM indian_export_shipments
         WHERE {where_clause}
     """
     
